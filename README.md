@@ -1,8 +1,6 @@
 # LIDA Streamlit Application 📊
 
-## About The Project
-
-This Streamlit application demonstrates an implementation of [LIDA](https://github.com/microsoft/lida) using Streamlit front end.
+This Streamlit application demonstrates an implementation of [LIDA](https://github.com/microsoft/lida) using Streamlit as a front end library.
 
 ![LIDA Streamlit Application](docs/images/streamlitlida.png)
 
