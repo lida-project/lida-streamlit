@@ -4,6 +4,10 @@ from lida.datamodel import Goal
 import os
 import pandas as pd
 
+
+# make data dir if it doesn't exist
+os.makedirs("data", exist_ok=True)
+
 st.set_page_config(
     page_title="LIDA: Automatic Generation of Visualizations and Infographics",
     page_icon="📊",
@@ -26,7 +30,6 @@ else:
     display_key = openai_key[:2] + "*" * (len(openai_key) - 5) + openai_key[-3:]
     st.sidebar.write(f"OpenAI API key loaded from environment variable: {display_key}")
 
-
 st.markdown(
     """
     LIDA is a library for generating data visualizations and data-faithful infographics.
@@ -37,9 +40,14 @@ st.markdown(
     tutorial [notebook](notebooks/tutorial.ipynb). See the project page [here](https://microsoft.github.io/lida/) for updates!.
 
    This demo shows how to use the LIDA python api with Streamlit. [More](/about).
+
+   ----
 """)
 
 if openai_key:
+    # Initialize selected_dataset to None
+    selected_dataset = None
+
     # select model from gpt-4 , gpt-3.5-turbo, gpt-3.5-turbo-16k
     st.sidebar.write("## Text Generation Model")
     models = ["gpt-4", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
@@ -50,40 +58,83 @@ if openai_key:
     )
     # set use_cache in sidebar
     use_cache = st.sidebar.checkbox("Use cache", value=True)
-    # select a dataset  or upload a dataset
+
+    # Handle dataset selection and upload
     st.sidebar.write("## Data Summarization")
-
     st.sidebar.write("### Choose a dataset")
-    datasets = {
-        "Cars": "https://raw.githubusercontent.com/uwdata/draco/master/data/cars.csv",
-        "Weather": "https://raw.githubusercontent.com/uwdata/draco/master/data/weather.json",
-    }
 
-    selected_dataset = st.sidebar.selectbox(
+    datasets = [
+        {"label": "Select a dataset", "url": None},
+        {"label": "Cars", "url": "https://raw.githubusercontent.com/uwdata/draco/master/data/cars.csv"},
+        {"label": "Weather", "url": "https://raw.githubusercontent.com/uwdata/draco/master/data/weather.json"},
+    ]
+
+    selected_dataset_label = st.sidebar.selectbox(
         'Choose a dataset',
-        options=list(datasets.keys())
+        options=[dataset["label"] for dataset in datasets],
+        index=0
     )
 
+    upload_own_data = st.sidebar.checkbox("Upload your own data")
 
-selected_dataset = datasets[selected_dataset] if selected_dataset in datasets else None
+    if upload_own_data:
+        uploaded_file = st.sidebar.file_uploader("Choose a CSV or JSON file", type=["csv", "json"])
 
-if selected_dataset == "Upload your own":
-    uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
+        if uploaded_file is not None:
+            # Get the original file name and extension
+            file_name, file_extension = os.path.splitext(uploaded_file.name)
 
-    if uploaded_file is not None:
-        import pandas as pd
-        import os
-        data = pd.read_csv(uploaded_file)
-        data.to_csv('temp.csv')
-        selected_dataset = os.path.abspath('temp.csv')
+            # Load the data depending on the file type
+            if file_extension.lower() == ".csv":
+                data = pd.read_csv(uploaded_file)
+            elif file_extension.lower() == ".json":
+                data = pd.read_json(uploaded_file)
 
-        st.sidebar.write("Uploaded file path: ", selected_dataset)
+            # Save the data using the original file name in the data dir
+            uploaded_file_path = os.path.join("data", uploaded_file.name)
+            data.to_csv(uploaded_file_path, index=False)
+
+            selected_dataset = uploaded_file_path
+
+            datasets.append({"label": file_name, "url": uploaded_file_path})
+
+            # st.sidebar.write("Uploaded file path: ", uploaded_file_path)
+    else:
+        selected_dataset = datasets[[dataset["label"]
+                                     for dataset in datasets].index(selected_dataset_label)]["url"]
+
+    if not selected_dataset:
+        st.info("To continue, select a dataset from the sidebar on the left or upload your own.")
 
 
 st.sidebar.write("### Choose a summarization method")
-summarization_methods = ["default", "llm", "columns"]
+# summarization_methods = ["default", "llm", "columns"]
+summarization_methods = [
+    {"label": "default",
+     "description": "Uses dataset column statistics and column names as the summary"},
+    {"label": "llm",
+     "description":
+     "Uses the LLM to generate annotate the default summary, adding details such as semantic types for columns and dataset description"},
+    {"label": "columns", "description": "Uses the dataset column names as the summary"}]
 
-selected_method = st.sidebar.selectbox("Choose a method", options=summarization_methods)
+# selected_method = st.sidebar.selectbox("Choose a method", options=summarization_methods)
+selected_method_label = st.sidebar.selectbox(
+    'Choose a method',
+    options=[method["label"] for method in summarization_methods],
+    index=0
+)
+
+selected_method = summarization_methods[[method["label"]
+                                         for method in summarization_methods].index(selected_method_label)]["label"]
+
+# add description of selected method in very small font to sidebar
+selected_summary_method_description = summarization_methods[[
+    method["label"] for method in summarization_methods].index(selected_method_label)]["description"]
+
+if selected_method:
+    st.sidebar.markdown(
+        f"<span> {selected_summary_method_description} </span>",
+        unsafe_allow_html=True)
 
 
 if openai_key and selected_dataset and selected_method:
