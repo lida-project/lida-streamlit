@@ -106,35 +106,34 @@ if openai_key:
     if not selected_dataset:
         st.info("To continue, select a dataset from the sidebar on the left or upload your own.")
 
+    st.sidebar.write("### Choose a summarization method")
+    # summarization_methods = ["default", "llm", "columns"]
+    summarization_methods = [
+        {"label": "default",
+         "description": "Uses dataset column statistics and column names as the summary"},
+        {"label": "llm",
+         "description":
+         "Uses the LLM to generate annotate the default summary, adding details such as semantic types for columns and dataset description"},
+        {"label": "columns", "description": "Uses the dataset column names as the summary"}]
 
-st.sidebar.write("### Choose a summarization method")
-# summarization_methods = ["default", "llm", "columns"]
-summarization_methods = [
-    {"label": "default",
-     "description": "Uses dataset column statistics and column names as the summary"},
-    {"label": "llm",
-     "description":
-     "Uses the LLM to generate annotate the default summary, adding details such as semantic types for columns and dataset description"},
-    {"label": "columns", "description": "Uses the dataset column names as the summary"}]
+    # selected_method = st.sidebar.selectbox("Choose a method", options=summarization_methods)
+    selected_method_label = st.sidebar.selectbox(
+        'Choose a method',
+        options=[method["label"] for method in summarization_methods],
+        index=0
+    )
 
-# selected_method = st.sidebar.selectbox("Choose a method", options=summarization_methods)
-selected_method_label = st.sidebar.selectbox(
-    'Choose a method',
-    options=[method["label"] for method in summarization_methods],
-    index=0
-)
+    selected_method = summarization_methods[[
+        method["label"] for method in summarization_methods].index(selected_method_label)]["label"]
 
-selected_method = summarization_methods[[method["label"]
-                                         for method in summarization_methods].index(selected_method_label)]["label"]
+    # add description of selected method in very small font to sidebar
+    selected_summary_method_description = summarization_methods[[
+        method["label"] for method in summarization_methods].index(selected_method_label)]["description"]
 
-# add description of selected method in very small font to sidebar
-selected_summary_method_description = summarization_methods[[
-    method["label"] for method in summarization_methods].index(selected_method_label)]["description"]
-
-if selected_method:
-    st.sidebar.markdown(
-        f"<span> {selected_summary_method_description} </span>",
-        unsafe_allow_html=True)
+    if selected_method:
+        st.sidebar.markdown(
+            f"<span> {selected_summary_method_description} </span>",
+            unsafe_allow_html=True)
 
 
 if openai_key and selected_dataset and selected_method:
