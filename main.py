@@ -17,6 +17,7 @@ st.write("# LIDA: Automatic Generation of Visualizations and Infographics using 
 
 st.sidebar.write("## Setup")
 
+# Step 1 - Get OpenAI API key
 openai_key = os.getenv("OPENAI_API_KEY")
 
 if not openai_key:
@@ -44,6 +45,7 @@ st.markdown(
    ----
 """)
 
+# Step 2 - Select a dataset and summarization method
 if openai_key:
     # Initialize selected_dataset to None
     selected_dataset = None
@@ -54,8 +56,17 @@ if openai_key:
     selected_model = st.sidebar.selectbox(
         'Choose a model',
         options=models,
-        index=1
+        index=0
     )
+
+    # select temperature on a scale of 0.0 to 1.0
+    # st.sidebar.write("## Text Generation Temperature")
+    temperature = st.sidebar.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.0)
+
     # set use_cache in sidebar
     use_cache = st.sidebar.checkbox("Use cache", value=True)
 
@@ -109,11 +120,12 @@ if openai_key:
     st.sidebar.write("### Choose a summarization method")
     # summarization_methods = ["default", "llm", "columns"]
     summarization_methods = [
-        {"label": "default",
-         "description": "Uses dataset column statistics and column names as the summary"},
         {"label": "llm",
          "description":
          "Uses the LLM to generate annotate the default summary, adding details such as semantic types for columns and dataset description"},
+        {"label": "default",
+         "description": "Uses dataset column statistics and column names as the summary"},
+
         {"label": "columns", "description": "Uses the dataset column names as the summary"}]
 
     # selected_method = st.sidebar.selectbox("Choose a method", options=summarization_methods)
@@ -135,23 +147,21 @@ if openai_key:
             f"<span> {selected_summary_method_description} </span>",
             unsafe_allow_html=True)
 
-
+# Step 3 - Generate data summary
 if openai_key and selected_dataset and selected_method:
     lida = Manager(text_gen=llm("openai", api_key=openai_key))
     textgen_config = TextGenerationConfig(
         n=1,
-        temperature=0.5,
+        temperature=temperature,
         model=selected_model,
         use_cache=use_cache)
 
     st.write("## Summary")
-
+    # **** lida.summarize *****
     summary = lida.summarize(
         selected_dataset,
         summary_method=selected_method,
         textgen_config=textgen_config)
-
-    print(summary.keys())
 
     if "dataset_description" in summary:
         st.write(summary["dataset_description"])
@@ -175,6 +185,7 @@ if openai_key and selected_dataset and selected_method:
     else:
         st.write(str(summary))
 
+    # Step 4 - Generate goals
     if summary:
         st.sidebar.write("### Goal Selection")
 
@@ -185,6 +196,7 @@ if openai_key and selected_dataset and selected_method:
             value=4)
         own_goal = st.sidebar.checkbox("Add Your Own Goal")
 
+        # **** lida.goals *****
         goals = lida.goals(summary, n=num_goals, textgen_config=textgen_config)
         st.write(f"## Goals ({len(goals)})")
 
@@ -208,6 +220,7 @@ if openai_key and selected_dataset and selected_method:
 
         selected_goal_object = goals[selected_goal_index]
 
+        # Step 5 - Generate visualizations
         if selected_goal_object:
             st.sidebar.write("## Visualization Library")
             visualization_libraries = ["seaborn", "matplotlib", "plotly"]
@@ -229,10 +242,11 @@ if openai_key and selected_dataset and selected_method:
                 value=2)
 
             textgen_config = TextGenerationConfig(
-                n=num_visualizations, temperature=0.2,
+                n=num_visualizations, temperature=temperature,
                 model=selected_model,
                 use_cache=use_cache)
 
+            # **** lida.visualize *****
             visualizations = lida.visualize(
                 summary=summary,
                 goal=selected_goal_object,
